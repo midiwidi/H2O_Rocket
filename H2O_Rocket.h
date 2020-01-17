@@ -11,7 +11,7 @@
 #include "wemos_d1_mini.h"
 #include "led_state_display.h"
 #include "button_input.h"
-#include <MPU9250.h>
+#include "MPU9250/MPU9250.h"
 #include <Adafruit_BMP280.h>
 #include "config.h"
 
