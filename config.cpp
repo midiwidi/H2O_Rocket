@@ -24,8 +24,6 @@ bool read_config(config_t* config)
 	n=fid_cfg.readBytesUntil('=', buff, sizeof(buff)); if (!n) goto error; n=fid_cfg.readBytesUntil('\n', buff, sizeof(buff)); if (!n) goto error; buff[n]='\0';
 	config->period_spiffs_check = atoi(buff);
 	n=fid_cfg.readBytesUntil('=', buff, sizeof(buff)); if (!n) goto error; n=fid_cfg.readBytesUntil('\n', buff, sizeof(buff)); if (!n) goto error; buff[n]='\0';
-	config->period_cam_capture = atoi(buff);
-	n=fid_cfg.readBytesUntil('=', buff, sizeof(buff)); if (!n) goto error; n=fid_cfg.readBytesUntil('\n', buff, sizeof(buff)); if (!n) goto error; buff[n]='\0';
 	config->release_detect_thresh = atof(buff);
 	n=fid_cfg.readBytesUntil('=', buff, sizeof(buff)); if (!n) goto error; n=fid_cfg.readBytesUntil('\n', buff, sizeof(buff)); if (!n) goto error; buff[n]='\0';
 	config->servo_close = atoi(buff);
@@ -98,7 +96,6 @@ bool write_config(config_t* config)
 	fid_cfg.printf("hpa_at_sealevel = %.2f\n", config->hpa_at_sealevel);
 	fid_cfg.printf("period_mpu_update = %d\n", config->period_mpu_update);
 	fid_cfg.printf("period_spiffs_check = %d\n", config->period_spiffs_check);
-	fid_cfg.printf("period_cam_capture = %d\n", config->period_cam_capture);
 	fid_cfg.printf("release_detect_thresh = %.2f\n", config->release_detect_thresh);
 	fid_cfg.printf("servo_close = %d\n", config->servo_close);
 	fid_cfg.printf("servo_middle = %d\n", config->servo_middle);
@@ -123,7 +120,6 @@ bool default_config(config_t* config)
 	config->hpa_at_sealevel = DEFAULT_HPA_AT_SEALEVEL;
 	config->period_mpu_update = DEFAULT_PERIOD_MPU_UPDATE;
 	config->period_spiffs_check = DEFAULT_PERIOD_SPIFFS_CHECK;
-	config->period_cam_capture =  DEFAULT_PERIOD_CAM_CAPTURE;
 	config->release_detect_thresh = DEFAULT_RELEASE_DETECT_THRESHOLD;
 	config->servo_close = DEFAULT_SERVO_CLOSE;
 	config->servo_middle = DEFAULT_SERVO_MIDDLE;
@@ -146,7 +142,6 @@ void print_config(config_t* config)
 					"hpa_at_sealevel = %f\r\n"
 					"period_mpu_update = %d\r\n"
 					"period_spiffs_check = %d\r\n"
-					"period_cam_capture = %d\r\n"
 					"release_detect_thresh = %f\r\n"
 					"servo_close = %d\r\n"
 					"servo_middle = %d\r\n"
@@ -164,7 +159,6 @@ void print_config(config_t* config)
 					config->hpa_at_sealevel,
 					config->period_mpu_update,
 					config->period_spiffs_check,
-					config->period_cam_capture,
 					config->release_detect_thresh,
 					config->servo_close,
 					config->servo_middle,

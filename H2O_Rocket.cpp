@@ -3,118 +3,6 @@
 #include "logging.h"
 
 
-//This can work on OV2640_MINI_2MP/OV2640_MINI_2MP_PLUS/OV5640_MINI_5MP_PLUS/OV5642_MINI_5MP_PLUS/OV5642_MINI_5MP_PLUS/
-//OV5642_MINI_5MP_BIT_ROTATION_FIXED/ ARDUCAM_SHIELD_V2 platform.
-#if !(defined (OV2640_MINI_2MP) ||defined (OV2640_MINI_2MP_PLUS)||defined (OV5640_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP_PLUS) \
-    || defined (OV5642_MINI_5MP) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) \
-    ||(defined (ARDUCAM_SHIELD_V2) && (defined (OV2640_CAM) || defined (OV5640_CAM) || defined (OV5642_CAM))))
-#error Please select the hardware platform and camera module in the ../libraries/ArduCAM/memorysaver.h file
-#endif
-
-void rgbcam_capture()
-{
-	byte buf[256];
-	static int i = 0;
-	uint8_t temp = 0, temp_last = 0;
-	uint32_t length = 0;
-	bool is_header = false;
-
-	if (spiffs_recording)
-	{
-		if (arducam_capture && !arducam_capture_started)
-		{
-			arducam_capture_started = true;
-			//Flush the FIFO
-			rgbcam.flush_fifo();
-			//Clear the capture done flag
-			rgbcam.clear_fifo_flag();
-			//Start capture
-			rgbcam.start_capture();
-		}
-
-		if (arducam_capture && rgbcam.get_bit(ARDUCHIP_TRIG, CAP_DONE_MASK))
-		{
-			File outFile;
-
-			length = rgbcam.read_fifo_length();
-
-			if (length >= MAX_FIFO_SIZE) //8M
-				logger(LOG_ERROR, "Over size.");
-			else if (length == 0) //0 kb
-				logger(LOG_WARNING, "Size is 0.");
-			else
-			{
-				//logger(LOG_INFO, "rgbcam fifo length is: %d", length);
-			}
-
-			//Construct a file name
-			sprintf(str, "/%03d_%03d_%08ld.jpg", config.reset_cnt, launch_cnt, millis());
-
-			//Open the new file
-			outFile = SPIFFS.open(str, "w");
-			if (!outFile)
-			{
-				logger(LOG_ERROR, "File open failed");
-				arducam_capture_started = false;
-				arducam_capture = false;
-				return;
-			}
-
-			i = 0;
-			rgbcam.CS_LOW();
-			rgbcam.set_fifo_burst();
-
-			while (length--)
-			{
-				temp_last = temp;
-				temp = SPI.transfer(0x00);
-				yield();
-				//Read JPEG data from FIFO
-				if ((temp == 0xD9) && (temp_last == 0xFF)) //If find the end ,break while,
-				{
-					buf[i++] = temp;  //save the last  0XD9
-					//Write the remain bytes in the buffer
-					rgbcam.CS_HIGH();
-					outFile.write(buf, i);
-					//Close the file
-					outFile.close();
-
-					//logger(LOG_INFO, "Image save OK.");
-					is_header = false;
-					i = 0;
-				}
-				if (is_header == true)
-				{
-					//Write image data to buffer if not full
-					if (i < 256)
-						buf[i++] = temp;
-					else
-					{
-						//Write 256 bytes image data to file
-						rgbcam.CS_HIGH();
-						outFile.write(buf, 256);
-						i = 0;
-						buf[i++] = temp;
-						rgbcam.CS_LOW();
-						rgbcam.set_fifo_burst();
-					}
-				}
-				else
-					if ((temp == 0xD8) & (temp_last == 0xFF))
-					{
-						is_header = true;
-						buf[i++] = temp_last;
-						buf[i++] = temp;
-					}
-			}
-
-			arducam_capture_started = false;
-			arducam_capture = false;
-		}
-	}
-}
-
-
 void setup()
 {
 	uint8_t vid, pid;
@@ -161,41 +49,9 @@ void setup()
 	servo.attach(PIN_SERVO, config.servo_open, config.servo_close);
 	servo.writeMicroseconds(config.servo_middle);
 
-	//set the RGB camera SPI CS as an output
-	pinMode(RGBCAM_SPI_CS, OUTPUT);
-	digitalWrite(RGBCAM_SPI_CS, HIGH);
-
-	//initialize SPI:
-	SPI.begin();
-	SPI.setFrequency(4000000); //4MHZ
-	//Reset the CPLD
-	rgbcam.write_reg(0x07, 0x80);
-	delay(100);
-	rgbcam.write_reg(0x07, 0x00);
-	delay(100);
-	//delay(1000);
-	//Check if the ArduCAM SPI bus is OK
-	rgbcam.write_reg(ARDUCHIP_TEST1, 0x55);
-	temp = rgbcam.read_reg(ARDUCHIP_TEST1);
-	if (temp != 0x55)
-	{
-		logger(LOG_ERROR, "ArduCam SPI I/F Error!");
-		while (1);
-	}
-
-	//Check if the camera module type is OV2640
-	rgbcam.wrSensorReg8_8(0xff, 0x01);
-	rgbcam.rdSensorReg8_8(OV2640_CHIPID_HIGH, &vid);
-	rgbcam.rdSensorReg8_8(OV2640_CHIPID_LOW, &pid);
-	if ((vid != 0x26) && ((pid != 0x41) || (pid != 0x42)))
-		logger(LOG_ERROR, "Can't find OV2640 module!");
-	else
-		logger(LOG_INFO, "OV2640 detected.");
-
-	//Change to JPEG capture mode and initialize the OV2640 module
-	rgbcam.set_format(JPEG);
-	rgbcam.InitCAM();
-	rgbcam.OV2640_set_JPEG_size(OV2640_800x600);
+	pinMode(PIN_CAMERA_RECORD, OUTPUT);
+	digitalWrite(PIN_CAMERA_RECORD, LOW);
+	cam_capture = false;
 
 	if(mpu.setup())
 	{
@@ -226,12 +82,8 @@ void setup()
 	delay(1);
 
 	launch_cnt = 0;
-	arducam_capture_started = false;
-	arducam_capture = false;
 
 	t_next_mpu_update = millis() + config.period_mpu_update;
-	t_next_spiffs_check = millis() + config.period_spiffs_check;
-	t_next_pic = millis() + config.period_cam_capture;
 
 	logger(LOG_INFO, "Setup() finished, starting loop()");
 }
@@ -413,6 +265,16 @@ void loop()
 			// State Entry Actions
 			if (last_state != state)
 			{
+				// Stop recording
+				if (cam_capture)
+				{
+					digitalWrite(PIN_CAMERA_RECORD, HIGH);
+					delay(CAM_RECORD_PULS_HIGH_TIME);
+					pinMode(PIN_CAMERA_RECORD, INPUT);
+					cam_capture = false;
+					logger(LOG_INFO, "HD camera recording stopped");
+				}
+
 				if (fid_log)
 					fid_log.close();
 
@@ -458,6 +320,15 @@ void loop()
 				if (!fid_dat)
 					logger(LOG_ERROR, "open %s failed!", str);
 
+				// Start recording
+				if (!cam_capture)
+				{
+					digitalWrite(PIN_CAMERA_RECORD, HIGH);
+					delay(CAM_RECORD_PULS_HIGH_TIME);
+					digitalWrite(PIN_CAMERA_RECORD, LOW);
+					cam_capture = true;
+					logger(LOG_INFO, "HD camera recording started");
+				}
 			}
 			// In-State Actions
 			else
@@ -509,6 +380,16 @@ void loop()
 				led.set_blinks(5);
 
 				fid_dat.close();
+
+				// Stop recording
+				if (cam_capture)
+				{
+					digitalWrite(PIN_CAMERA_RECORD, HIGH);
+					delay(CAM_RECORD_PULS_HIGH_TIME);
+					digitalWrite(PIN_CAMERA_RECORD, LOW);
+					cam_capture = false;
+					logger(LOG_INFO, "HD camera recording stopped");
+				}
 			}
 			// In-State Actions
 			else
@@ -672,18 +553,6 @@ void loop()
 
 			t_next_mpu_update = millis() + config.period_mpu_update;
 		}
-	}
-
-	if (state==STATE_PARACHUTE_RELEASE || state==STATE_DOWNWARDS )
-	{
-		if (millis() >= t_next_pic && !arducam_capture)
-		{
-			arducam_capture = true;
-			t_next_pic = millis() + config.period_cam_capture;
-			//logger(LOG_INFO, "cam capture request");
-		}
-
-		rgbcam_capture();
 	}
 
 	last_state = state;

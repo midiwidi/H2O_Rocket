@@ -15,9 +15,9 @@
 #include <Adafruit_BMP280.h>
 #include "config.h"
 
-#define PIN_BUTTON	PIN_D3
-#define PIN_SERVO	PIN_D8
-#define RGBCAM_SPI_CS PIN_D0
+#define PIN_BUTTON			PIN_D3
+#define PIN_SERVO			PIN_D8
+#define PIN_CAMERA_RECORD 	PIN_D0
 
 typedef enum
 {
@@ -39,7 +39,6 @@ const char *ftp_user = "RocketFTP";
 const char *ftp_password = "flybabyfly";
 
 FtpServer ftpSrv;   //set #define FTP_DEBUG in ESP8266FtpServer.h to see ftp verbose on serial
-ArduCAM rgbcam(OV2640, RGBCAM_SPI_CS);
 Servo servo;
 LED_state_display led;
 button_input button;
@@ -51,10 +50,9 @@ FSInfo spiffs_info;
 bool spiffs_recording;
 int launch_cnt;
 char str[32];
-bool arducam_capture_started, arducam_capture;
+bool cam_capture;
 unsigned long t_next_mpu_update;
 unsigned long t_next_spiffs_check;
-unsigned long t_next_pic;
 unsigned long t_next_wifi_check;
 unsigned long t_wifi_timeout;
 float bx, by, bz;
