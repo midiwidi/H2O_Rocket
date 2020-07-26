@@ -8,7 +8,7 @@
 #define DEFAULT_SERVO_CLOSE 	2300
 #define DEFAULT_SERVO_OPEN		600
 #define DEFAULT_SERVO_MIDDLE	(DEFAULT_SERVO_OPEN+DEFAULT_SERVO_CLOSE)>>1
-
+#define CAM_RECORD_PULS_HIGH_TIME	200		// time of camera recording pulse high time in ms
 #define DEFAULT_PERIOD_MPU_UPDATE	200
 #define DEFAULT_PERIOD_SPIFFS_CHECK	10000
 #define DEFAULT_PERIOD_CAM_CAPTURE	1000
@@ -30,7 +30,6 @@ struct config_t
 
 		uint16_t period_mpu_update;
 		uint16_t period_spiffs_check;
-		uint16_t period_cam_capture;
 
 		uint32_t spiffs_free_min;
 		float accy_lauch_detect_thresh;
